@@ -2,6 +2,7 @@ import 'package:awesome_icons/awesome_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_firebase_auth_app/provider/sign_in_provider.dart';
 import 'package:flutter_firebase_auth_app/screens/home_screen.dart';
+import 'package:flutter_firebase_auth_app/screens/phone_auth_screen.dart';
 import 'package:flutter_firebase_auth_app/utils/next_screen.dart';
 import 'package:flutter_firebase_auth_app/utils/snackbar.dart';
 import 'package:rounded_loading_button/rounded_loading_button.dart';
@@ -23,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final RoundedLoadingButtonController facebookController =
       RoundedLoadingButtonController();
   final RoundedLoadingButtonController twitterController =
+      RoundedLoadingButtonController();
+  final RoundedLoadingButtonController phoneController =
       RoundedLoadingButtonController();
   @override
   Widget build(BuildContext context) {
@@ -87,8 +90,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: FontAwesomeIcons.twitter,
                     text: 'Twitter',
                     color: const Color(0xff1CA0F2),
-                    function: () {},
+                    function: handleTwitterSignIn,
                   ),
+                  const SizedBox(height: 15),
+                  RoundedButton(
+                      size: size,
+                      googleController: phoneController,
+                      icon: FontAwesomeIcons.phoneAlt,
+                      text: 'Phone',
+                      color: Colors.black.withOpacity(0.85),
+                      function: () {
+                        nextScreenReplace(context, const PhoneAuthScreen());
+                        phoneController.reset();
+                      }),
                 ],
               )
             ],
@@ -96,6 +110,45 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future handleTwitterSignIn() async {
+    final sp = context.read<SignInProvider>();
+    final ip = context.read<InternetProvider>();
+    await ip.checkInternetConnection();
+
+    if (ip.hasInternet == false) {
+      openSnackBar(context, "Check your Internet connection", Colors.red);
+      twitterController.reset();
+    } else {
+      await sp.signInWithTwitter().then((value) {
+        if (sp.hasError == true) {
+          openSnackBar(context, sp.errorCode.toString(), Colors.red);
+          twitterController.reset();
+        } else {
+          // check whether the user is logged in or not
+          sp.checkUserExists().then((value) async {
+            if (value == true) {
+              // user exists
+              await sp.getUserDataFromFirestore(sp.uid).then((value) => sp
+                  .saveDataToSharedPreferences()
+                  .then((value) => sp.setSignIn().then((value) {
+                        twitterController.success();
+                        handleAfterSignIn();
+                      })));
+            } else {
+              // user does not exist
+              sp.saveDataToFirestore().then((value) => sp
+                  .saveDataToSharedPreferences()
+                  .then((value) => sp.setSignIn().then((value) {
+                        twitterController.success();
+                        // handleAfterSignIn
+                      })));
+            }
+          });
+        }
+      });
+    }
   }
 
   Future handleGoogleSignIn() async {
