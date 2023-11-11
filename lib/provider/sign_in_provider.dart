@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -95,6 +94,8 @@ class SignInProvider extends ChangeNotifier {
         _imageUrl = userDetails.photoURL;
         _uid = userDetails.uid;
         _provider = 'Google';
+        _hasError = false;
+        notifyListeners();
       } on FirebaseAuthException catch (err) {
         switch (err.code) {
           case "account-exists-with-different-credential":
@@ -208,7 +209,7 @@ class SignInProvider extends ChangeNotifier {
         final userDetails = authResult.user;
         // save all the user details
         _name = userDetails!.name;
-        _email = firebaseAuth.currentUser?.email;
+        _email = firebaseAuth.currentUser?.email ?? "test@gmail.com";
         _imageUrl = userDetails.thumbnailImage;
         _uid = userDetails.id.toString();
         _provider = 'TWITTER';
@@ -217,10 +218,24 @@ class SignInProvider extends ChangeNotifier {
       } on FirebaseAuthException catch (err) {
         switch (err.code) {
           case "account-exists-with-different-credential":
-            _errorCode =
-                'Your already have an account with us. Use correct credentials';
-            _hasError = true;
-            notifyListeners();
+            // _errorCode =
+            //     'Your already have an account with us. Use correct credentials';
+            // _hasError = true;
+            // notifyListeners();
+
+            // The account already exists with a different credential
+            String email = err.email!;
+            // AuthCredential pendingCredential = err.credential!;
+
+            // Fetch a list of what sign-in methods exist for the conflicting user
+            List<String> userSignInMethods =
+                await firebaseAuth.fetchSignInMethodsForEmail(email);
+
+            // If the user has several sign-in methods,
+            // the first method in the list will be the "recommended" method to use.
+            if (userSignInMethods == 'google.com') {
+              return signInWithGoogle();
+            }
             break;
           case "null":
             _errorCode = 'Some error occurred while trying to sign in';

@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // handle after sign in
   handleAfterSignIn() {
-    Future.delayed(const Duration(milliseconds: 1000)).then((value) {
+    Future.delayed(const Duration(milliseconds: 100)).then((value) {
       nextScreenReplace(context, const HomeScreen());
     });
   }
